@@ -1,0 +1,13 @@
+Uuid: 
+ExtensionType: 1
+Name: Response Overview
+RepoName: PentagridResponseOverview
+ScreenVersion: 1.00
+SerialVersion: 1
+MinPlatformVersion: 0
+ProOnly: False
+Author: Tobias 'floyd' Ospelt, Pentagrid AG
+ShortDescription: Group similar responses and find anomalies in web applications
+EntryPoint: build/libs/ResponseOverview-1.0.jar
+BuildCommand: gradle build jar
+SupportedProducts: Pro, Community
