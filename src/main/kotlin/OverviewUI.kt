@@ -14,12 +14,13 @@ import javax.swing.event.DocumentListener
 import javax.swing.table.AbstractTableModel
 import javax.swing.table.TableRowSorter
 
+
 class OverviewUI: ITab, IMessageEditorController {
 
     private val tabName = "Overview"
     private val resetText = "Reset settings"
+    private val unhideText = "Unhide all log entries"
 
-    val log = ArrayList<LogEntry>()
     var currentlyDisplayedItem: IHttpRequestResponse? = null
 
     var settings = Settings()
@@ -33,7 +34,12 @@ class OverviewUI: ITab, IMessageEditorController {
     private lateinit var responseMaxSizeFld: JTextField
     private lateinit var debugBox: JCheckBox
     private lateinit var resetButton: JButton
+    private lateinit var unhideButton: JButton
     private val logTable = Table(this)
+
+    fun log(): ArrayList<LogEntry> {
+        return (logTable.model as TableModel).log
+    }
 
     private val about = """
         <html>
@@ -122,12 +128,29 @@ class OverviewUI: ITab, IMessageEditorController {
         loadSettings()
 
         logTable.rowSorter = TableRowSorter(logTable.model)
+        (logTable.rowSorter as TableRowSorter<*>).rowFilter = IdRowFilter()
+
+        val popupMenu = JPopupMenu()
+        val hideItem = JMenuItem("Hide item(s)")
+        hideItem.addActionListener {
+            EventQueue.invokeLater {
+                for(i in logTable.selectedRows) {
+                    (logTable.model as TableModel).addNoShow(logTable.convertRowIndexToModel(i))
+                }
+                // it is important that we do this out of loop, because otherwise the row index changes and
+                // convertRowIndexToModel will return the changed index, which breaks the entire logic
+                (logTable.rowSorter as TableRowSorter<*>).sort()
+            }
+        }
+        popupMenu.add(hideItem)
+        logTable.componentPopupMenu = popupMenu
 
         maxGroupsFld = JTextField(settings.maxGroups.toString(), 10)
         similarityFld = JTextField(settings.similarity.toString(), 10)
         responseMaxSizeFld = JTextField(settings.responseMaxSize.toString(), 10)
         debugBox = JCheckBox("", settings.debug)
         resetButton = JButton(resetText)
+        unhideButton = JButton(unhideText)
 
         val aboutLbl = JTextPane()
         aboutLbl.contentType = "text/html"
@@ -250,6 +273,17 @@ class OverviewUI: ITab, IMessageEditorController {
         optionsJPanel.add(resetButton, gbc)
         BurpExtender.c.customizeUiComponent(resetButton)
 
+        gbc.gridy=6
+        unhideButton.addActionListener {
+            EventQueue.invokeLater {
+                (logTable.model as TableModel).resetNoShow()
+                (logTable.rowSorter as TableRowSorter<*>).sort()
+            }
+        }
+        gbc.gridx=1
+        optionsJPanel.add(unhideButton, gbc)
+        BurpExtender.c.customizeUiComponent(unhideButton)
+
         BurpExtender.c.customizeUiComponent(splitPane)
         BurpExtender.c.customizeUiComponent(logTable)
         BurpExtender.c.customizeUiComponent(scrollPane)
@@ -269,10 +303,7 @@ class OverviewUI: ITab, IMessageEditorController {
     fun addNewLogEntry(candidate: LogEntry, persist: Boolean = true) {
         //val persisted = BurpExtender.c.saveBuffersToTempFiles(candidate.messageInfo)
         //candidate.messageInfo = persisted
-        val row = log.size
-        log.add(candidate)
-        val model = logTable.model as TableModel
-        model.fire(row)
+        (logTable.model as TableModel).add(candidate)
         if(persist){
             saveLogEntries()
         }
@@ -320,8 +351,8 @@ class OverviewUI: ITab, IMessageEditorController {
     }
 
     private fun saveLogEntries() {
-        if(log.isNotEmpty())
-            PersistOverview.saveLogEntries(log)
+        if((logTable.model as TableModel).log.isNotEmpty())
+            PersistOverview.saveLogEntries((logTable.model as TableModel).log)
     }
 
     override val tabCaption: String
@@ -354,7 +385,7 @@ class OverviewUI: ITab, IMessageEditorController {
 }
 
 
-class TableModel(private val userInterface: OverviewUI): AbstractTableModel() {
+class TableModel : AbstractTableModel() {
 
     private val toolColumn = "Tool"
     private val responseCodeColumn = "Response Code"
@@ -362,26 +393,44 @@ class TableModel(private val userInterface: OverviewUI): AbstractTableModel() {
     private val urlColumn = "URL"
     private val idColumn = "ID"
     private val columns = arrayOf(idColumn, urlColumn, toolColumn, responseCodeColumn, groupSizeColumn)
+    val log = ArrayList<LogEntry>()
 
-    fun fire(row: Int){
-        fireTableRowsInserted(row, row)
+    fun addNoShow(rowIndex: Int){
+        log[rowIndex].hidden = true
+    }
+
+    fun resetNoShow(){
+        for(i in log){
+            i.hidden = false
+        }
     }
 
     override fun getValueAt(rowIndex: Int, columnIndex: Int): Any {
-        val logEntry = userInterface.log[rowIndex]
+        val logEntry = log[rowIndex]
         return when (columnIndex) {
             0 -> rowIndex
             1 -> logEntry.url.toString()
             2 -> BurpExtender.c.getToolName(logEntry.toolFlag)
-            3 -> logEntry.statusCode.toString()
-            4 -> logEntry.groupSize.toString()
-            else -> ""
+            3 -> logEntry.statusCode
+            4 -> logEntry.groupSize
+            else -> throw RuntimeException()
+        }
+    }
+
+    override fun getColumnClass(columnIndex: Int): Class<*> {
+        return when (columnIndex) {
+            0 -> Integer::class.java
+            1 -> String::class.java
+            2 -> String::class.java
+            3 -> Short::class.java
+            4 -> Integer::class.java
+            else -> throw RuntimeException()
         }
     }
 
     override fun getRowCount(): Int {
         return try {
-            userInterface.log.size
+            log.size
         } catch(e: Exception){
             0
         }
@@ -395,18 +444,32 @@ class TableModel(private val userInterface: OverviewUI): AbstractTableModel() {
         return columns[columnIndex]
     }
 
+    fun add(candidate: LogEntry) {
+        val row = log.size
+        log.add(candidate)
+        fireTableRowsInserted(row, row)
+    }
+
 }
 
 class Table(private val userInterface: OverviewUI): JTable() {
     init{
-        model = TableModel(userInterface)
+        model = TableModel()
     }
 
     override fun changeSelection(row: Int, col: Int, toggle: Boolean, extend: Boolean){
-        val logEntry = userInterface.log[convertRowIndexToModel(row)]
+        val logEntry = (model as TableModel).log[convertRowIndexToModel(row)]
         userInterface.requestViewer.setMessage(logEntry.messageInfo.request, true)
         userInterface.responseViewer.setMessage(logEntry.messageInfo.response!!, false)
         userInterface.currentlyDisplayedItem = logEntry.messageInfo
         super.changeSelection(row, col, toggle, extend)
     }
+}
+
+class IdRowFilter: RowFilter<TableModel, Int>(){
+
+    override fun include(entry: Entry<out TableModel, out Int>): Boolean {
+        return !entry.model.log[entry.getStringValue(0).toInt()].hidden
+    }
+
 }

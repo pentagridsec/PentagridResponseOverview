@@ -9,9 +9,10 @@ data class LogEntry(
     val body: ByteArray, var charCountPrecalculated: Map<Byte, Int>?): Serializable{
 
     var groupSize = 1
+    var hidden = false
 
     override fun toString(): String {
-        return "ToolFlag: $toolFlag, StatusCode: $statusCode, URL: $url, GroupSize: $groupSize, body: $body"
+        return "ToolFlag: $toolFlag, StatusCode: $statusCode, URL: $url, GroupSize: $groupSize, body: $body, hidden: $hidden"
     }
 
     override fun equals(other: Any?): Boolean {

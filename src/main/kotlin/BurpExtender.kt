@@ -97,7 +97,7 @@ class BurpExtender : IBurpExtender, IExtensionStateListener, IHttpListener {
 
     override fun processHttpMessage(toolFlag: Int, messageIsRequest: Boolean, messageInfo: IHttpRequestResponse) {
         if(!messageIsRequest){
-            if(ui.log.size >= ui.settings.maxGroups){
+            if(ui.log().size >= ui.settings.maxGroups){
                 if(ui.settings.debug){
                     println("Too many groups (${ui.settings.maxGroups}) already")
                 }
