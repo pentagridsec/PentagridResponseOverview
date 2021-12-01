@@ -6,13 +6,15 @@ plugins {
 }
 
 group = "me.user"
-version = "1.0"
+version = "1.2"
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
+    // https://mvnrepository.com/artifact/net.portswigger.burp.extender/burp-extender-api
+    //implementation("net.portswigger.burp.extender:burp-extender-api:2.3")
 
 }
 
@@ -25,8 +27,9 @@ application {
 }
 
 tasks.withType<Jar>() {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest {
-        attributes["Main-Class"] = "burp.BurpExtender"
+        attributes["Main-Class"] = "ch.pentagrid.burpexts.responseoverview.BurpExtender"
     }
     from(sourceSets.main.get().output)
     dependsOn(configurations.runtimeClasspath)

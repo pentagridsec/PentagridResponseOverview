@@ -1,15 +1,17 @@
-package burp
+package burpwrappers
 
+import burp.IHttpRequestResponse
+import burp.IHttpService
 import java.io.Serializable
 
-data class HttpRequestResponse(
+data class SerializableHttpRequestResponse(
     override var request: ByteArray, override var response: ByteArray?, override var comment: String?,
     override var highlight: String?, override var httpService: IHttpService
 ): IHttpRequestResponse, Serializable {
 
     companion object{
-        fun fromHttpRequestResponse(rr: IHttpRequestResponse): HttpRequestResponse{
-            return HttpRequestResponse(rr.request, rr.response, rr.comment, rr.highlight, HttpService.fromHttpService(rr.httpService))
+        fun fromHttpRequestResponse(rr: IHttpRequestResponse): SerializableHttpRequestResponse{
+            return SerializableHttpRequestResponse(rr.request, rr.response, rr.comment, rr.highlight, SerializableHttpService.fromHttpService(rr.httpService))
         }
     }
 
@@ -17,7 +19,7 @@ data class HttpRequestResponse(
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
-        other as HttpRequestResponse
+        other as SerializableHttpRequestResponse
 
         if (!request.contentEquals(other.request)) return false
         if (response != null) {
@@ -39,5 +41,4 @@ data class HttpRequestResponse(
         result = 31 * result + httpService.hashCode()
         return result
     }
-
 }

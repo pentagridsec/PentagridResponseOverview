@@ -34,6 +34,7 @@ class PersistOverview: Persist() {
             //This is to prevent errors such as:
             //java.io.InvalidObjectException: Malformed URL:  https://example.org:443some.burpcollaborator.net:443
             for(entry in entries) {
+                println("Saving entry.hidden "+ entry.hidden)
                 val byteOut = ByteArrayOutputStream()
                 val objectOut = ObjectOutputStream(byteOut)
                 objectOut.writeObject(entry)

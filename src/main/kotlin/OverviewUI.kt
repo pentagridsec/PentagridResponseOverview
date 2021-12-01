@@ -137,6 +137,9 @@ class OverviewUI: ITab, IMessageEditorController {
                 for(i in logTable.selectedRows) {
                     (logTable.model as TableModel).addNoShow(logTable.convertRowIndexToModel(i))
                 }
+                // We don't save the new "hidden" states every time and just assume on extension unload this
+                // is done properly instead
+                // saveLogEntries()
                 // it is important that we do this out of loop, because otherwise the row index changes and
                 // convertRowIndexToModel will return the changed index, which breaks the entire logic
                 (logTable.rowSorter as TableRowSorter<*>).sort()
@@ -304,6 +307,8 @@ class OverviewUI: ITab, IMessageEditorController {
         //val persisted = BurpExtender.c.saveBuffersToTempFiles(candidate.messageInfo)
         //candidate.messageInfo = persisted
         (logTable.model as TableModel).add(candidate)
+        println("candidate.hidden " + candidate.hidden)
+        (logTable.rowSorter as TableRowSorter<*>).sort()
         if(persist){
             saveLogEntries()
         }
@@ -329,6 +334,9 @@ class OverviewUI: ITab, IMessageEditorController {
         }
 
          */
+        if(entries.isNotEmpty()){
+            println("Old table entries found from project settings: ${entries.size} entries")
+        }
         for (entry in entries) {
             try {
                 addNewLogEntry(entry, false)
@@ -366,7 +374,7 @@ class OverviewUI: ITab, IMessageEditorController {
     override val response: ByteArray?
         get() = currentlyDisplayedItem?.response
 
-    private inner class DocumentHandler(val function: (e: DocumentEvent?) -> Unit): DocumentListener{
+    private inner class DocumentHandler(val function: (e: DocumentEvent?) -> Unit): DocumentListener {
 
         override fun insertUpdate(e: DocumentEvent?) {
             function(e)
@@ -381,9 +389,7 @@ class OverviewUI: ITab, IMessageEditorController {
         }
 
     }
-
 }
-
 
 class TableModel : AbstractTableModel() {
 

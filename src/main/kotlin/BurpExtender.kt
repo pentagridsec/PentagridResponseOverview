@@ -1,6 +1,7 @@
 package ch.pentagrid.burpexts.responseoverview
 
 import burp.*
+import burpwrappers.SerializableHttpRequestResponse
 import java.io.PrintWriter
 
 
@@ -37,11 +38,13 @@ class BurpExtender : IBurpExtender, IExtensionStateListener, IHttpListener {
         val uninterestingMimeTypes = arrayOf("JPEG", "CSS", "script", "GIF", "PNG", "image")
         //val uninterestingStatusCodes = emptyArray<String>()
         val uninterestingUrlFileExtensions = arrayOf(
-            "js",
+            // Mainly "static" things are excluded
+            "js", ".js.map", ".css.map",
             "swf", "css", "zip", "war", "jar", "doc", "docx", "xls", "xlsx", "pdf", "exe", "dll",
             "png", "jpeg", "jpg", "bmp", "tif", "tiff", "gif", "webp", "svg",
             "m3u", "mp4", "m4a", "ogg", "aac", "flac", "mp3", "wav", "avi", "mov", "mpeg", "wmv", "webm",
             "woff", "woff2", "ttf"
+            // Interesting are at least: json, xml, html, text, application/octet-stream
         )
 
         fun println(s: String){
@@ -62,6 +65,8 @@ class BurpExtender : IBurpExtender, IExtensionStateListener, IHttpListener {
 
         stdout = PrintWriter(c.stdout, true)
         stderr = PrintWriter(c.stderr, true)
+
+        println("Loading $extensionName")
 
         gr = Grouper()
         gr.start()
@@ -93,6 +98,7 @@ class BurpExtender : IBurpExtender, IExtensionStateListener, IHttpListener {
         gr.stop = true
         println("Saving the settings")
         ui.save()
+        println("Ready for shutdown")
     }
 
     override fun processHttpMessage(toolFlag: Int, messageIsRequest: Boolean, messageInfo: IHttpRequestResponse) {
@@ -159,7 +165,9 @@ class BurpExtender : IBurpExtender, IExtensionStateListener, IHttpListener {
             }
             //So this is indeed a response we want to group
 
-            gr.addNewCandidate(LogEntry(HttpRequestResponse.fromHttpRequestResponse(messageInfo), toolFlag, iResponseInfo.statusCode, url, body, null))
+            gr.addNewCandidate(LogEntry(
+                SerializableHttpRequestResponse.fromHttpRequestResponse(messageInfo), toolFlag,
+                iResponseInfo.statusCode, url, body, null, 1, false))
         }
     }
 }

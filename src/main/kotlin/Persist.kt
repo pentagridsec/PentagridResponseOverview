@@ -1,7 +1,7 @@
 package ch.pentagrid.burpexts.responseoverview
 
-import burp.HttpRequestResponse
-import burp.HttpService
+import burpwrappers.SerializableHttpRequestResponse
+import burpwrappers.SerializableHttpService
 import java.io.*
 import java.util.*
 
@@ -56,7 +56,8 @@ open class Persist {
                 |X-Header: The Burp extender API does not support project-level settings, so every extension author
                 |X-Header: has to abuse this SiteMap storage.
             """.trimMargin().toByteArray()
-            val rr = HttpRequestResponse(request, bytes, null, null, HttpService(host, port, protocol))
+            val rr = SerializableHttpRequestResponse(request, bytes, null, null,
+                SerializableHttpService(host, port, protocol))
             BurpExtender.c.addToSiteMap(rr)
         }
 
@@ -66,8 +67,15 @@ open class Persist {
                 return null
             }
             val serializedThing = rr[0].response
-            val byteIn = ByteArrayInputStream(serializedThing)
-            return ObjectInputStream(byteIn).readObject()
+            var obj: Any? = null
+            try {
+                val byteIn = ByteArrayInputStream(serializedThing)
+                obj = ObjectInputStream(byteIn).readObject()
+            }catch(ice: InvalidClassException){
+                println("Unfortunately deserialization did not work. Probably the extension was updated and the " +
+                        "serialVersionUID changed of the objects and differs with the ones stored. " + ice.toString())
+            }
+            return obj
         }
 
 
