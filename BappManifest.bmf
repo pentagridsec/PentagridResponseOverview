@@ -1,13 +1,13 @@
-Uuid: 
+Uuid: e63f09f290ad4d9ea20031e84767b303
 ExtensionType: 1
 Name: Response Overview
-RepoName: PentagridResponseOverview
-ScreenVersion: 1.1
-SerialVersion: 2
+RepoName: response-overview
+ScreenVersion: 1.2
+SerialVersion: 7
 MinPlatformVersion: 0
 ProOnly: False
-Author: Tobias 'floyd' Ospelt, Pentagrid AG
-ShortDescription: Group similar responses and find anomalies in web applications
-EntryPoint: build/libs/ResponseOverview-1.1.jar
-BuildCommand: gradle build jar
+Author: Floyd
+ShortDescription: Find exotic responses by grouping response bodies
+EntryPoint: build/libs/ResponseOverview-1.2.jar
+BuildCommand: ./gradlew jar
 SupportedProducts: Pro, Community
