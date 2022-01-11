@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "me.user"
-version = "1.2"
+version = "1.3"
 
 // targetCompatibility = 1.8
 // sourceCompatibility = 1.8
