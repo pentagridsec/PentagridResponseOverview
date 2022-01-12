@@ -6,27 +6,30 @@ Author: Tobias "floyd" Ospelt, @floyd_ch, http://www.floyd.ch
 Pentagrid AG, https://www.pentagrid.ch
 
 # Find exotic responses by grouping response bodies (response overview)
-When the filter constraints are satisfied, the incoming response bodies (from all Burp tools!) is compared to all the groups we already created. A group is defined by it's very first member, which we keep in memory. If the response we are processing is 96.0% similar to that first member, it belongs to that group and only the "Group Size" counter is increased. That also means we won't store that response. If the response is not 96.0% similar to any group, it forms a new group and it is its first member.
+This extension groups all response bodies by similarity and shows a summary, one request/response per group. The extension will allow a tester to get an overview of the tested website's responses from all tools (scanner, proxy, etc.). It provides an additional "semi-automated detection method" (compared to the usual detection methods response-based, time-based, interaction-based, etc.).
 
 # Trophy case
 So far:
 * I noticed a local file include vulnerability not picked up by the scanner.
 * Found an SQL injection in a ClickHouse big data DBMS with a very exotic error message in the response.
 * My attention was drawn to a lot of interesting functionality that I might have missed.
-* Unfortunately nothing public so far, as I mainly do pentests with it. Did you find something? Let me know: floyd at floyd dot ch
+* Unfortunately nothing public so far, as I mainly do pentests with it. Did you find something? Let me know: tobias at pentagrid dot ch
 
 # Howto use this extension
 Usage is very simple:
 * Add the website you test to the scope
 * Test the web application (proxy, scanner, etc.) as you usually do.
-* Check back on the Overview tab and have a look at all the responses. Did you notice all that functionality? Do you notice any strange error message? Any data in there that is new to you?
+* Check back on the Overview tab and have a look at all the responses (you can order by column). Did you notice all that functionality? Do you notice any strange error message? Any data in there that is new to you?
+* Pwn or hide the request/responses you looked at by righ-clicking and selecting 'Hide item(s)'
 
 This extension analyses HTTP responses if:
 * They are in scope
 * They are not uninteresting mime types (Burp mime types JPEG, CSS, script, GIF, PNG, image)
 * They do not have an uninteresting file extension (js, swf, css, zip, war, jar, doc, docx, xls, xlsx, pdf, exe, dll, png, jpeg, jpg, bmp, tif, tiff, gif, webp, svg, m3u, mp4, m4a, ogg, aac, flac, mp3, wav, avi, mov, mpeg, wmv, webm, woff, woff2, ttf)
-* They are smaller than 1048576 bytes
+* They are smaller than 1 MB
 * We aren't already displaying 1000 groups
+
+When the above filter constraints are satisfied, the incoming response bodies (from all Burp tools!) are compared to all the groups we already created. A group is defined by its very first member, which we keep in memory. If the response we are processing is 95% similar to that first member, it belongs to that group and only the "Group Size" counter is increased. That also means we won't store that response. If the response is not 95% similar to any group, it forms a new group and it is its first member.
 
 # History
 The first version of such a response overview that allows you to find anomalies I proposed in 2010 to the w3af project (see also a discussion here: https://github.com/andresriancho/w3af/issues/17345) and was written in Python. It never made it into mainline w3af, I don't remember why. I learned a lot about Python's difflib back then and optimized performance for the use case. I wrote a similar extension in Python for Burp in 2019 and again learned a lot about Python's difflib when I was working for modzero AG https://github.com/modzero/burp-ResponseClusterer. However, at one point I realized that the extension might be eating some of Burp's performance, which I at first ignored. In 2021 the extension broke completely as it wouldn't run with newer Jython versions anymore and while revisiting the code I realized that I coded a very memory-inefficient extension. So here we are, this is a new extension in 2021 in Kotlin with different features, again learning a lot from Python's difflib and different features. I did a performance improvement because I realized certain calculations are not necessary if we always compare against the same strings (as already implemented in the Python code).
@@ -36,5 +39,6 @@ In theory, the default settings could result in not-that-great performance of Bu
 
 # Ideas for future improvements
 
-* We could hide the lines with the top 20% most seen groups (group size). Because that's probably just the regular HTML code or JSON responses that we see normally and are very uninteresting. But then we would kind of miss the "overview" property of the extension. So this is currently not done.
-* Let me know if you think of any other improvements: tobias at pentagrid dot ch.
+* We could auto-hide the lines with the top 20% most seen groups (group size). Because that's probably just the regular HTML code or JSON responses that we see normally and are very uninteresting. But then we would kind of miss the "overview" property of the extension. So this is currently not done.
+* Provide checkboxes to disable certain return codes be displayed at all
+* Let me know if you think of any other improvements on the issues tab
