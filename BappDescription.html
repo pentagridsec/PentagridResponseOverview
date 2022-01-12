@@ -1,18 +1,20 @@
-<p>When the filter constraints are satisfied, the incoming response bodies (from all Burp tools!) is compared to all the groups we already created. A group is defined by it's very first member, which we keep in memory. If the response we are processing is 96.0% similar to that first member, it belongs to that group and only the "Group Size" counter is increased. That also means we won't store that response. If the response is not 96.0% similar to any group, it forms a new group and it is its first member.</p>
+<p>This extension groups all response bodies by similarity and shows a summary, one request/response per group. The extension will allow a tester to get an overview of the tested website's responses from all tools (scanner, proxy, etc.). It provides an additional "semi-automated detection method" (compared to the usual detection methods response-based, time-based, interaction-based, etc.).</p>
 
-<p>How to:</p>
 <p>Usage is very simple:</p>
 <ul>
 	<li>Add the website you test to the scope</li>
 	<li>Test the web application (proxy, scanner, etc.) as you usually do.</li>
-	<li>Check back on the Overview tab and have a look at all the responses. Did you notice all that functionality? Do you notice any strange error message? Any data in there that is new to you?</li>
+	<li>Check back on the Overview tab and have a look at all the responses (you can order by column). Did you notice all that functionality? Do you notice any strange error message? Any data in there that is new to you?</li>
+    <li>Pwn or hide the request/responses you looked at by righ-clicking and selecting 'Hide item(s)'</li>
 </ul>
 
-<p>This extension analyses HTTP responses if:</p>
+<p>This extension analyses HTTP responses if (default settings):</p>
 <ul>
 	<li>They are in scope</li>
 	<li>They are not uninteresting mime types (Burp mime types JPEG, CSS, script, GIF, PNG, image)</li>
 	<li>They do not have an uninteresting file extension (js, swf, css, zip, war, jar, doc, docx, xls, xlsx, pdf, exe, dll, png, jpeg, jpg, bmp, tif, tiff, gif, webp, svg, m3u, mp4, m4a, ogg, aac, flac, mp3, wav, avi, mov, mpeg, wmv, webm, woff, woff2, ttf)</li>
-	<li>They are smaller than 1048576 bytes</li>
+	<li>They are smaller than 1 MB</li>
 	<li>We aren't already displaying 1000 groups</li>
 </ul>
+
+<p>When the above filter constraints are satisfied, the incoming response bodies (from all Burp tools!) are compared to all the groups we already created. A group is defined by its very first member, which we keep in memory. If the response we are processing is 95% similar to that first member, it belongs to that group and only the "Group Size" counter is increased. That also means we won't store that response. If the response is not 95% similar to any group, it forms a new group and it is its first member.</p>
