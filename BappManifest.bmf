@@ -6,7 +6,7 @@ ScreenVersion: 1.3
 SerialVersion: 8
 MinPlatformVersion: 0
 ProOnly: False
-Author: Floyd
+Author: Tobias "floyd" Ospelt
 ShortDescription: Find exotic responses by grouping response bodies
 EntryPoint: build/libs/ResponseOverview-1.3.jar
 BuildCommand: ./gradlew jar
