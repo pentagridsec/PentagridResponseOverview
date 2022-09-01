@@ -1,5 +1,6 @@
 package ch.pentagrid.burpexts.responseoverview
 
+import java.util.regex.PatternSyntaxException
 import kotlin.system.measureTimeMillis
 
 class Grouper : Thread() {
@@ -27,7 +28,7 @@ class Grouper : Thread() {
                 synchronized(newCandidates){
                     try {
                         candidate = newCandidates.removeFirst()
-                    }catch(e: NoSuchElementException){
+                    }catch(_: NoSuchElementException){
 
                     }
                 }
@@ -43,32 +44,38 @@ class Grouper : Thread() {
         val oldLogSize = BurpExtender.ui.log().size
         var found = false
 
-        /*
-        TODO
-
-        const val FOUR_OH_THREE = 403.toShort()
-        val ACCESS_DENIED = "AccessDenied".toByteArray()
-        val CODE_TAG = "<Code>".toByteArray()
-        val REQUEST_ID = "<RequestId>".toByteArray()
-        val HOST_ID = "<HostId>".toByteArray()
-
-        //Now a couple of special cases
-        if(iResponseInfo.statusCode == FOUR_OH_THREE &&
-            body.findFirst(ACCESS_DENIED) != -1 &&
-            body.findFirst(CODE_TAG) != -1 &&
-            body.findFirst(REQUEST_ID) != -1 &&
-            body.findFirst(HOST_ID) != -1
-        ){
-            // Just an AmazonS3 AccessDenied
-            if(BurpExtender.ui.settings.debug){
-                BurpExtender.println("Ignoring AmazonS3 AccessDenied: $url")
+        try {
+            if(BurpExtender.ui.settings.removeRegex.isNotEmpty()) {
+                val re = Regex(BurpExtender.ui.settings.removeRegex)
+                candidate.body = BurpExtender.h.stringToBytes(
+                    re.replace(BurpExtender.h.bytesToString(candidate.body), "")
+                )
             }
+        }
+        catch(e: PatternSyntaxException){
+            BurpExtender.println("Invalid Regex ${BurpExtender.ui.settings.removeRegex}")
+        }
+
+        val log = BurpExtender.ui.log()
+
+        //Performance optimization is more important than an accurate groupSize counter.
+        //If there are too many log entries with the exact same response size already
+        //we don't want to create a new log entry. But if we wouldn't anyway, the only point
+        //in searching for duplicates is to have a more accurate groupSize counter.
+        //But we rather take the performance optimization: Don't do the search (and the costly similarity comparison)
+        //while maybe having a too low groupSize counter for an item.
+        val logEntriesSameSizeSameStatus = log.filter{it.body.size == candidate.body.size &&
+                it.statusCode == candidate.statusCode}.size
+        if (logEntriesSameSizeSameStatus >= BurpExtender.ui.settings.maxGroupsWithSameResponseBodySize) {
+            BurpExtender.println("We already have ${BurpExtender.ui.settings.maxGroupsWithSameResponseBodySize} " +
+                    "log entries with status code ${candidate.statusCode} and response body size ${candidate.body.size}." +
+                    "Therefore ignoring this response. Change the 'Maximum amount of log entries with same status code and response body size' " +
+                    "setting if you would like to look at more.")
             return
         }
-        */
 
         val elapsed = measureTimeMillis {
-            for (logEntry in BurpExtender.ui.log()) {
+            for (logEntry in log) {
                 if (logEntry.statusCode == candidate.statusCode) {
                     //IMPORTANT: The candidate body has to be passed in first, the logEntry.body second!
                     val (isSimilar, charCount) = Similarity.isSimilar(

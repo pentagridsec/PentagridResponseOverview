@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "me.user"
-version = "1.3"
+version = "1.4"
 
 java.sourceCompatibility = JavaVersion.VERSION_1_8
 java.targetCompatibility = JavaVersion.VERSION_1_8
@@ -19,6 +19,7 @@ repositories {
 dependencies {
     // https://mvnrepository.com/artifact/net.portswigger.burp.extender/burp-extender-api
     //implementation("net.portswigger.burp.extender:burp-extender-api:2.3")
+    implementation(kotlin("stdlib-jdk8"))
 
 }
 
@@ -40,4 +41,12 @@ tasks.withType<Jar>() {
     from({
         configurations.runtimeClasspath.get().filter { it.name.endsWith("jar") }.map { zipTree(it) }
     })
+}
+val compileKotlin: KotlinCompile by tasks
+compileKotlin.kotlinOptions {
+    jvmTarget = "1.8"
+}
+val compileTestKotlin: KotlinCompile by tasks
+compileTestKotlin.kotlinOptions {
+    jvmTarget = "1.8"
 }

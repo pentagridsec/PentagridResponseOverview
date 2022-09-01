@@ -40,7 +40,13 @@ open class Persist {
                 val serializedThing = value.fromBase64()
                 //println("Deserialized $serializedThing")
                 val byteIn = ByteArrayInputStream(serializedThing)
-                ObjectInputStream(byteIn).readObject()
+                try {
+                    ObjectInputStream(byteIn).readObject()
+                }catch(e: Exception){
+                    println("Unfortunately deserialization did not work. Probably the extension was updated and the " +
+                            "settings changed: " + e.toString())
+                    null
+                }
             }
         }
 

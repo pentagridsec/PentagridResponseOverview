@@ -32,6 +32,8 @@ class OverviewUI: ITab, IMessageEditorController {
     private lateinit var maxGroupsFld: JTextField
     private lateinit var similarityFld: JTextField
     private lateinit var responseMaxSizeFld: JTextField
+    private lateinit var removeRegexFld: JTextField
+    private lateinit var maxGroupsWithSameResponseBodySizeFld: JTextField
     private lateinit var debugBox: JCheckBox
     private lateinit var resetButton: JButton
     private lateinit var unhideButton: JButton
@@ -80,6 +82,7 @@ class OverviewUI: ITab, IMessageEditorController {
             BurpExtender.uninterestingUrlFileExtensions.size).joinToString(", ")})</li>
         <li>They are smaller than ${settings.responseMaxSize} bytes</li>
         <li>We aren't already displaying ${settings.maxGroups} groups</li>
+        <li>We aren't already displaying ${settings.maxGroupsWithSameResponseBodySize} groups with the same status code and response body size</li>
         </ul>
         <h3>History</h3>
         The first version of such a response overview that allows you to find anomalies I proposed in 2010<br>
@@ -133,13 +136,11 @@ class OverviewUI: ITab, IMessageEditorController {
         val popupMenu = JPopupMenu()
         val hideItem = JMenuItem("Hide item(s)")
         hideItem.addActionListener {
+            for(i in logTable.selectedRows) {
+                (logTable.model as TableModel).log[logTable.convertRowIndexToModel(i)].hidden = true
+            }
+            saveLogEntries()
             EventQueue.invokeLater {
-                for(i in logTable.selectedRows) {
-                    (logTable.model as TableModel).addNoShow(logTable.convertRowIndexToModel(i))
-                }
-                // We don't save the new "hidden" states every time and just assume on extension unload this
-                // is done properly instead
-                // saveLogEntries()
                 // it is important that we do this out of loop, because otherwise the row index changes and
                 // convertRowIndexToModel will return the changed index, which breaks the entire logic
                 (logTable.rowSorter as TableRowSorter<*>).sort()
@@ -151,6 +152,8 @@ class OverviewUI: ITab, IMessageEditorController {
         maxGroupsFld = JTextField(settings.maxGroups.toString(), 10)
         similarityFld = JTextField(settings.similarity.toString(), 10)
         responseMaxSizeFld = JTextField(settings.responseMaxSize.toString(), 10)
+        maxGroupsWithSameResponseBodySizeFld = JTextField(settings.maxGroupsWithSameResponseBodySize.toString(), 10)
+        removeRegexFld = JTextField(settings.removeRegex, 10)
         debugBox = JCheckBox("", settings.debug)
         resetButton = JButton(resetText)
         unhideButton = JButton(unhideText)
@@ -248,8 +251,47 @@ class OverviewUI: ITab, IMessageEditorController {
         BurpExtender.c.customizeUiComponent(responseMaxSizeLbl)
         BurpExtender.c.customizeUiComponent(responseMaxSizeFld)
 
-        val debugLbl = JLabel("Turn debug on (see extender output)")
+        val removeRegexLbl = JLabel("Remove regex")
         gbc.gridy=4
+        gbc.gridx=0
+        optionsJPanel.add(removeRegexLbl, gbc)
+        removeRegexFld.document.addDocumentListener(
+            DocumentHandler {
+                settings.removeRegex = removeRegexFld.text
+                saveSettings()
+            }
+        )
+        gbc.gridx=1
+        optionsJPanel.add(removeRegexFld, gbc)
+        BurpExtender.c.customizeUiComponent(removeRegexLbl)
+        BurpExtender.c.customizeUiComponent(removeRegexFld)
+
+        val maxGroupsWithSameResponseBodySizeLbl = JLabel("Maximum amount of log entries with same status code and response body size")
+        gbc.gridy=5
+        gbc.gridx=0
+        optionsJPanel.add(maxGroupsWithSameResponseBodySizeLbl, gbc)
+        maxGroupsWithSameResponseBodySizeFld.document.addDocumentListener(
+            DocumentHandler {
+                try {
+                    settings.maxGroupsWithSameResponseBodySize = maxGroupsWithSameResponseBodySizeFld.text.toInt()
+                } catch (e: NumberFormatException) {
+                    //println("NumberFormatException when reading maxGroupsWithSameResponseBodySize")
+                    //Happens when we press the reset button
+                    settings.maxGroupsWithSameResponseBodySize = Settings().maxGroupsWithSameResponseBodySize
+                }
+                if (settings.maxGroupsWithSameResponseBodySize < 0) {
+                    settings.maxGroupsWithSameResponseBodySize = Settings().maxGroupsWithSameResponseBodySize
+                }
+                saveSettings()
+            }
+        )
+        gbc.gridx=1
+        optionsJPanel.add(maxGroupsWithSameResponseBodySizeFld, gbc)
+        BurpExtender.c.customizeUiComponent(maxGroupsWithSameResponseBodySizeLbl)
+        BurpExtender.c.customizeUiComponent(maxGroupsWithSameResponseBodySizeFld)
+
+        val debugLbl = JLabel("Turn debug on (see extender output)")
+        gbc.gridy=6
         gbc.gridx=0
         optionsJPanel.add(debugLbl, gbc)
         debugBox.addActionListener {
@@ -261,7 +303,7 @@ class OverviewUI: ITab, IMessageEditorController {
         BurpExtender.c.customizeUiComponent(debugLbl)
         BurpExtender.c.customizeUiComponent(debugBox)
 
-        gbc.gridy=5
+        gbc.gridy=7
         resetButton.addActionListener {
             settings = Settings()
             saveSettings()
@@ -276,7 +318,7 @@ class OverviewUI: ITab, IMessageEditorController {
         optionsJPanel.add(resetButton, gbc)
         BurpExtender.c.customizeUiComponent(resetButton)
 
-        gbc.gridy=6
+        gbc.gridy=8
         unhideButton.addActionListener {
             EventQueue.invokeLater {
                 (logTable.model as TableModel).resetNoShow()
@@ -307,7 +349,7 @@ class OverviewUI: ITab, IMessageEditorController {
         //val persisted = BurpExtender.c.saveBuffersToTempFiles(candidate.messageInfo)
         //candidate.messageInfo = persisted
         (logTable.model as TableModel).add(candidate)
-        println("candidate.hidden " + candidate.hidden)
+        //println("candidate.hidden " + candidate.hidden)
         (logTable.rowSorter as TableRowSorter<*>).sort()
         if(persist){
             saveLogEntries()
@@ -395,15 +437,12 @@ class TableModel : AbstractTableModel() {
 
     private val toolColumn = "Tool"
     private val responseCodeColumn = "Response Code"
+    private val responseBodyLengthColumn = "Response body length"
     private val groupSizeColumn = "Group size"
     private val urlColumn = "URL"
     private val idColumn = "ID"
-    private val columns = arrayOf(idColumn, urlColumn, toolColumn, responseCodeColumn, groupSizeColumn)
+    private val columns = arrayOf(idColumn, urlColumn, toolColumn, responseCodeColumn, responseBodyLengthColumn, groupSizeColumn)
     val log = ArrayList<LogEntry>()
-
-    fun addNoShow(rowIndex: Int){
-        log[rowIndex].hidden = true
-    }
 
     fun resetNoShow(){
         for(i in log){
@@ -418,7 +457,8 @@ class TableModel : AbstractTableModel() {
             1 -> logEntry.url.toString()
             2 -> BurpExtender.c.getToolName(logEntry.toolFlag)
             3 -> logEntry.statusCode
-            4 -> logEntry.groupSize
+            4 -> logEntry.body.size
+            5 -> logEntry.groupSize
             else -> throw RuntimeException()
         }
     }
@@ -430,6 +470,7 @@ class TableModel : AbstractTableModel() {
             2 -> String::class.java
             3 -> Short::class.java
             4 -> Integer::class.java
+            5 -> Integer::class.java
             else -> throw RuntimeException()
         }
     }
