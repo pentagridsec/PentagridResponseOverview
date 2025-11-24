@@ -57,6 +57,8 @@ open class Persist {
             objectOut.close()
             val bytes = byteOut.toByteArray()
             byteOut.close()
+            if(BurpExtender.ui.settings.debug)
+                println("Saving ${(bytes.size / (1024 * 1024)).toInt()} MB to project settings target")
             val request = """GET /$name HTTP/0.9
                 |X-Header: You can ignore this item in the site map. It was created by the ResponseOverview extension.
                 |X-Header: The Burp extender API does not support project-level settings, so every extension author
