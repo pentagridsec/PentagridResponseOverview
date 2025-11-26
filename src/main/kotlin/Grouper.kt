@@ -131,15 +131,14 @@ class Grouper : Thread() {
             return
         }
 
-        if(BurpExtender.ui.settings.removeParameter){
-            candidate.removeParameterBody = removeRequestParameters(candidate)
-        }
-
         val elapsed = measureTimeMillis {
+            if(BurpExtender.ui.settings.removeParameter){
+                candidate.removeParameterBody = removeRequestParameters(candidate)
+            }
             for (logEntry in log) {
                 if (logEntry.statusCode == candidate.statusCode) {
                     //START NEW functionality regarding parameter removing
-                    val (isSimilar, charCount) = if(BurpExtender.ui.settings.removeParameter){
+                    val (isSimilar, charCount) = if(BurpExtender.ui.settings.removeParameter && candidate.removeParameterBody != null){
                         if (logEntry.removeParameterBody == null) {
                             logEntry.removeParameterBody = removeRequestParameters(logEntry)
                         }
