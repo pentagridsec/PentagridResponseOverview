@@ -1,20 +1,26 @@
-<p>This extension groups all response bodies by similarity and shows a summary, one request/response per group. The extension will allow a tester to get an overview of the tested website's responses from all tools (scanner, proxy, etc.). It provides an additional "semi-automated detection method" (compared to the usual detection methods response-based, time-based, interaction-based, etc.).</p>
+<p>
+	Response Overview groups HTTP response bodies by similarity and presents one request/response per group. This
+	provides security testers with an efficient method to identify anomalies, exotic error messages, and overlooked
+	functionality across all responses captured from any Burp tool.
+</p>
 
-<p>Usage is very simple:</p>
+<h2>Features</h2>
 <ul>
-	<li>Add the website you test to the scope</li>
-	<li>Test the web application (proxy, scanner, etc.) as you usually do.</li>
-	<li>Check back on the Overview tab and have a look at all the responses (you can order by column). Did you notice all that functionality? Do you notice any strange error message? Any data in there that is new to you?</li>
-    <li>Pwn or hide the request/responses you looked at by righ-clicking and selecting 'Hide item(s)'</li>
+	<li>Automatically groups similar responses using a similarity threshold to reduce noise and highlight unique
+		responses</li>
+	<li>Identifies vulnerabilities missed by automated scanners by surfacing unusual error messages and unexpected
+		responses</li>
+	<li>Removes reflected request parameters before comparison to prevent false grouping from parameter reflection</li>
+	<li>Processes responses from all Burp tools in real-time with configurable filtering by scope, file extension, and
+		MIME type</li>
+	<li>Provides sortable tabular view with status codes, URLs, response sizes, and group sizes for quick analysis</li>
 </ul>
 
-<p>This extension analyses HTTP responses if (default settings):</p>
-<ul>
-	<li>They are in scope</li>
-	<li>They are not uninteresting mime types (Burp mime types JPEG, CSS, script, GIF, PNG, image)</li>
-	<li>They do not have an uninteresting file extension (js, swf, css, zip, war, jar, doc, docx, xls, xlsx, pdf, exe, dll, png, jpeg, jpg, bmp, tif, tiff, gif, webp, svg, m3u, mp4, m4a, ogg, aac, flac, mp3, wav, avi, mov, mpeg, wmv, webm, woff, woff2, ttf)</li>
-	<li>They are smaller than 1 MB</li>
-	<li>We aren't already displaying 1000 groups</li>
-</ul>
-
-<p>When the above filter constraints are satisfied, the incoming response bodies (from all Burp tools!) are compared to all the groups we already created. A group is defined by its very first member, which we keep in memory. If the response we are processing is 95% similar to that first member, it belongs to that group and only the "Group Size" counter is increased. That also means we won't store that response. If the response is not 95% similar to any group, it forms a new group and it is its first member.</p>
+<h2>Usage</h2>
+<ol>
+	<li>Add your target website to Burp Suite's scope</li>
+	<li>Test the web application using any Burp tools (Proxy, Scanner, Intruder, Repeater)</li>
+	<li>Navigate to the Response Overview tab to review grouped responses, sorted by any column</li>
+	<li>Examine responses with small group sizes or unusual status codes for potential security issues</li>
+	<li>Right-click and select "Hide item(s)" to remove reviewed entries from the overview</li>
+</ol>
