@@ -28,9 +28,9 @@ class Similarity {
                 return Pair(true, bByteCountNew)
             }
             if(minimum_similarity > veryQuickRatio(a, b)){
-                if(BurpExtender.ui.settings.debug){
+                /*if(BurpExtender.ui.settings.debug){
                     println("Similarity.veryQuickRatio did the trick in no time")
-                }
+                }*/
                 return Pair(false, bByteCountNew)
             }else{
                 val res: Pair<Double, Map<Byte, Int>>

@@ -34,6 +34,7 @@ class OverviewUI: ITab, IMessageEditorController {
     private lateinit var responseMaxSizeFld: JTextField
     private lateinit var removeRegexFld: JTextField
     private lateinit var maxGroupsWithSameResponseBodySizeFld: JTextField
+    private lateinit var removeParameterBox: JCheckBox
     private lateinit var debugBox: JCheckBox
     private lateinit var resetButton: JButton
     private lateinit var unhideButton: JButton
@@ -80,6 +81,7 @@ class OverviewUI: ITab, IMessageEditorController {
         ${BurpExtender.uninterestingUrlFileExtensions.copyOfRange(10, 29).joinToString(", ")}, <br>
         ${BurpExtender.uninterestingUrlFileExtensions.copyOfRange(29, 
             BurpExtender.uninterestingUrlFileExtensions.size).joinToString(", ")})</li>
+        <li>They are not standard error pages of common web servers such as Apache</li>
         <li>They are smaller than ${settings.responseMaxSize} bytes</li>
         <li>We aren't already displaying ${settings.maxGroups} groups</li>
         <li>We aren't already displaying ${settings.maxGroupsWithSameResponseBodySize} groups with the same status code and response body size</li>
@@ -155,6 +157,7 @@ class OverviewUI: ITab, IMessageEditorController {
         maxGroupsWithSameResponseBodySizeFld = JTextField(settings.maxGroupsWithSameResponseBodySize.toString(), 10)
         removeRegexFld = JTextField(settings.removeRegex, 10)
         debugBox = JCheckBox("", settings.debug)
+        removeParameterBox = JCheckBox("", settings.removeParameter)
         resetButton = JButton(resetText)
         unhideButton = JButton(unhideText)
 
@@ -290,8 +293,21 @@ class OverviewUI: ITab, IMessageEditorController {
         BurpExtender.c.customizeUiComponent(maxGroupsWithSameResponseBodySizeLbl)
         BurpExtender.c.customizeUiComponent(maxGroupsWithSameResponseBodySizeFld)
 
-        val debugLbl = JLabel("Turn debug on (see extender output)")
+        val removeParameterLbl = JLabel("Remove Parameters (stores response body twice!)")
         gbc.gridy=6
+        gbc.gridx=0
+        optionsJPanel.add(removeParameterLbl, gbc)
+        removeParameterBox.addActionListener {
+            settings.removeParameter = removeParameterBox.isSelected
+            saveSettings()
+        }
+        gbc.gridx=1
+        optionsJPanel.add(removeParameterBox, gbc)
+        BurpExtender.c.customizeUiComponent(removeParameterLbl)
+        BurpExtender.c.customizeUiComponent(removeParameterBox)
+
+        val debugLbl = JLabel("Turn debug on (see extender output)")
+        gbc.gridy=7
         gbc.gridx=0
         optionsJPanel.add(debugLbl, gbc)
         debugBox.addActionListener {
@@ -303,7 +319,7 @@ class OverviewUI: ITab, IMessageEditorController {
         BurpExtender.c.customizeUiComponent(debugLbl)
         BurpExtender.c.customizeUiComponent(debugBox)
 
-        gbc.gridy=7
+        gbc.gridy=8
         resetButton.addActionListener {
             settings = Settings()
             saveSettings()
@@ -311,6 +327,7 @@ class OverviewUI: ITab, IMessageEditorController {
                 maxGroupsFld.text = settings.maxGroups.toString()
                 similarityFld.text = settings.similarity.toString()
                 responseMaxSizeFld.text = settings.responseMaxSize.toString()
+                removeParameterBox.isSelected = settings.removeParameter
                 debugBox.isSelected = settings.debug
             }
         }
@@ -318,7 +335,7 @@ class OverviewUI: ITab, IMessageEditorController {
         optionsJPanel.add(resetButton, gbc)
         BurpExtender.c.customizeUiComponent(resetButton)
 
-        gbc.gridy=8
+        gbc.gridy=9
         unhideButton.addActionListener {
             EventQueue.invokeLater {
                 (logTable.model as TableModel).resetNoShow()

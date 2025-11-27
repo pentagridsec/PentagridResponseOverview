@@ -39,11 +39,11 @@ class BurpExtender : IBurpExtender, IExtensionStateListener, IHttpListener {
         //val uninterestingStatusCodes = emptyArray<String>()
         val uninterestingUrlFileExtensions = arrayOf(
             // Mainly "static" things are excluded
-            "js", ".js.map", ".css.map",
+            "js", ".map",
             "swf", "css", "zip", "war", "jar", "doc", "docx", "xls", "xlsx", "pdf", "exe", "dll",
             "png", "jpeg", "jpg", "bmp", "tif", "tiff", "gif", "webp", "svg",
             "m3u", "mp4", "m4a", "ogg", "aac", "flac", "mp3", "wav", "avi", "mov", "mpeg", "wmv", "webm",
-            "woff", "woff2", "ttf"
+            "woff", "woff2", "ttf", "otf"
             // Interesting are at least: json, xml, html, text, application/octet-stream
         )
 
@@ -54,8 +54,6 @@ class BurpExtender : IBurpExtender, IExtensionStateListener, IHttpListener {
     }
 
     private val extensionName = "Response Overview"
-
-
 
     override fun registerExtenderCallbacks(callbacks: IBurpExtenderCallbacks) {
         c = callbacks
@@ -141,6 +139,8 @@ class BurpExtender : IBurpExtender, IExtensionStateListener, IHttpListener {
                 }
                 return
             }
+
+
             /*
             if(iResponseInfo.statusCode in uninterestingStatusCodes){
                 if(debug){
@@ -150,7 +150,7 @@ class BurpExtender : IBurpExtender, IExtensionStateListener, IHttpListener {
             }
             */
 
-            val file = url.file
+            val file = url.path
             if(file != null && '.' in file && file.split(".").last() in uninterestingUrlFileExtensions){
                 if(ui.settings.debug){
                     println("Uninteresting file extension: $url")
@@ -159,15 +159,39 @@ class BurpExtender : IBurpExtender, IExtensionStateListener, IHttpListener {
             }
 
             val body = resp.drop(iResponseInfo.bodyOffset).toByteArray()
+            val bodyString = h.bytesToString(body).trim()
 
-            if(ui.settings.debug){
-                println("Candidate detected: $url")
+            if(
+                (bodyString.startsWith("<html><body>Please follow <a href=\"") && bodyString.endsWith("\">this link</a></body></html>")) ||
+                (bodyString.startsWith("""<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head>
+<title>303 See Other</title>
+</head><body>
+<h1>See Other</h1>
+<p>The answer to your request is located <a href="""") && bodyString.endsWith("""">here</a>.</p>
+</body></html>""")) ||
+                (bodyString.startsWith("""<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head>
+<title>301 Moved Permanently</title>
+</head><body>
+<h1>Moved Permanently</h1>
+<p>The document has moved <a href="""") && bodyString.endsWith("""">here</a>.</p>
+</body></html>"""))
+                ){
+                if(ui.settings.debug){
+                    println("Standard Apache error/redirect/status code page found: $url")
+                }
+                return
             }
+
+            /*if(ui.settings.debug){
+                println("Candidate detected: $url")
+            }*/
             //So this is indeed a response we want to group
 
             gr.addNewCandidate(LogEntry(
                 SerializableHttpRequestResponse.fromHttpRequestResponse(messageInfo), toolFlag,
-                iResponseInfo.statusCode, url, body, null, 1, false))
+                iResponseInfo.statusCode, url, body, null, null, 1, false))
         }
     }
 }

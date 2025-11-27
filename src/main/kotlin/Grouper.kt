@@ -40,6 +40,63 @@ class Grouper : Thread() {
         }
     }
 
+    private fun removeRequestParameters(logEntry: LogEntry): ByteArray{
+        val minimumLength = 8
+        var responseBody = BurpExtender.h.bytesToString(logEntry.body)
+        val iRequestInfo = BurpExtender.h.analyzeRequest(logEntry.messageInfo)
+        val parameters = iRequestInfo.parameters
+        for(parameter in parameters){
+            val valuesToSearch = mutableListOf(parameter.name, parameter.value)
+
+            for(toDecode in listOf(parameter.name, parameter.value)) {
+                if(toDecode == null)
+                    continue
+                for (coder in Encoder.allCoders) {
+                    if (coder.hasDecode()) {
+                        try {
+                            val newDecoded = coder.decode(toDecode)
+                            if (newDecoded.length > minimumLength)
+                                valuesToSearch.add(newDecoded)
+                        } catch (e: Exception) {
+
+                        }
+                    }
+                }
+            }
+
+            for(search in valuesToSearch) {
+                if(search == null)
+                    continue
+                if (search.length > minimumLength) {
+                    responseBody = responseBody.replace(search, "")
+
+                    val coders = Encoder.getEncoder(search, responseBody)
+                    if(coders != null) {
+                        val newSearch = Encoder.applyEncoders(search, coders)
+                        if (newSearch.length > minimumLength)
+                            responseBody = responseBody.replace(newSearch, "")
+                    }
+
+                    for(coder in Encoder.allCoders){
+                        if(coder.hasEncode()){
+                            try {
+                                val newEncoded = coder.encode(search)
+                                if (newEncoded.length > minimumLength)
+                                    responseBody = responseBody.replace(newEncoded, "")
+                            }catch(e: Exception){
+
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if(BurpExtender.ui.settings.debug){
+            println("Original size ${BurpExtender.h.bytesToString(logEntry.body).length}, new size ${responseBody.length}")
+        }
+        return BurpExtender.h.stringToBytes(responseBody)
+    }
+
     private fun checkCandidate(candidate: LogEntry) {
         val oldLogSize = BurpExtender.ui.log().size
         var found = false
@@ -75,13 +132,29 @@ class Grouper : Thread() {
         }
 
         val elapsed = measureTimeMillis {
+            if(BurpExtender.ui.settings.removeParameter){
+                candidate.removeParameterBody = removeRequestParameters(candidate)
+            }
             for (logEntry in log) {
                 if (logEntry.statusCode == candidate.statusCode) {
+                    //START NEW functionality regarding parameter removing
+                    val (isSimilar, charCount) = if(BurpExtender.ui.settings.removeParameter && candidate.removeParameterBody != null){
+                        if (logEntry.removeParameterBody == null) {
+                            logEntry.removeParameterBody = removeRequestParameters(logEntry)
+                        }
+                        Similarity.isSimilar(
+                            candidate.removeParameterBody!!, logEntry.removeParameterBody!!,
+                            BurpExtender.ui.settings.similarity / 100, logEntry.charCountPrecalculated
+                        )
+                    }else{
+                        Similarity.isSimilar(
+                            candidate.body, logEntry.body,
+                            BurpExtender.ui.settings.similarity / 100, logEntry.charCountPrecalculated
+                        )
+                    }
+                    //END NEW functionality regarding parameter removing
                     //IMPORTANT: The candidate body has to be passed in first, the logEntry.body second!
-                    val (isSimilar, charCount) = Similarity.isSimilar(
-                        candidate.body, logEntry.body,
-                        BurpExtender.ui.settings.similarity / 100, logEntry.charCountPrecalculated
-                    )
+
                     if (charCount != null) {
                         logEntry.charCountPrecalculated = charCount
                     }
@@ -103,10 +176,11 @@ class Grouper : Thread() {
                 BurpExtender.ui.addNewLogEntry(candidate)
             }
         }
-        if(elapsed > 500 || BurpExtender.ui.settings.debug){
+        if(elapsed > 500){
             println(
                 "Grouper.checkCandidate elapsed time: ${elapsed}ms, length of candidate: ${candidate.body.size}, " +
-                        "number of responses to compare against: ${oldLogSize}. Resulted in new entry: ${!found}."
+                        "number of responses to compare against: ${oldLogSize}. Resulted in new entry: ${!found}. " +
+                        "URL: ${candidate.url}"
             )
         }
     }

@@ -6,7 +6,7 @@ Author: Tobias "floyd" Ospelt, @floyd_ch, http://www.floyd.ch
 Pentagrid AG, https://www.pentagrid.ch
 
 # Find exotic responses by grouping response bodies (response overview)
-This extension groups all response bodies by similarity and shows a summary, one request/response per group. The extension will allow a tester to get an overview of the tested website's responses from all tools (scanner, proxy, etc.). It provides an additional "semi-automated detection method" (compared to the usual detection methods response-based, time-based, interaction-based, etc.).
+This extension groups all response bodies by similarity and shows a summary, one request/response per group. The extension will allow a tester to get an overview of the tested website's responses from all tools (scanner, proxy, etc.). It provides an additional "semi-automated detection method" (compared to the usual detection methods response-based, time-based, interaction-based, etc.). There are various optimisations, mainly for performance reasons. The "remove parameters" feature removes reflected request parameters from the response before comparison.
 
 # Trophy case
 So far:

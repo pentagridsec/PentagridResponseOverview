@@ -10,7 +10,7 @@ import java.net.URL
 
 data class LogEntry(
     var messageInfo: SerializableHttpRequestResponse, var toolFlag: Int, var statusCode: Short, var url: URL,
-    var body: ByteArray, var charCountPrecalculated: Map<Byte, Int>?, var groupSize: Int,
+    var body: ByteArray, var removeParameterBody: ByteArray?, var charCountPrecalculated: Map<Byte, Int>?, var groupSize: Int,
     var hidden: Boolean
 ): Serializable{
 
