@@ -3,11 +3,11 @@ ExtensionType: 1
 Name: Response Overview
 RepoName: response-overview
 ScreenVersion: 1.5
-SerialVersion: 12
-MinPlatformVersion: 0
+SerialVersion: 13
+MinPlatformVersion: 2
 ProOnly: False
 Author: Tobias "floyd" Ospelt
 ShortDescription: Find exotic responses by grouping response bodies
-EntryPoint: build/libs/ResponseOverview-1.5.jar
+EntryPoint: ResponseOverview-1.5.jar
 BuildCommand: ./gradlew jar
 SupportedProducts: Pro, Community
