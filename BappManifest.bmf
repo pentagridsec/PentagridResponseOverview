@@ -3,7 +3,7 @@ ExtensionType: 1
 Name: Response Overview
 RepoName: response-overview
 ScreenVersion: 1.5
-SerialVersion: 14
+SerialVersion: 15
 MinPlatformVersion: 2
 ProOnly: False
 Author: Tobias "floyd" Ospelt
