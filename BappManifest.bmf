@@ -2,12 +2,12 @@ Uuid: e63f09f290ad4d9ea20031e84767b303
 ExtensionType: 1
 Name: Response Overview
 RepoName: response-overview
-ScreenVersion: 1.5
-SerialVersion: 15
+ScreenVersion: 1.6
+SerialVersion: 16
 MinPlatformVersion: 2
 ProOnly: False
 Author: Tobias "floyd" Ospelt
 ShortDescription: Find exotic responses by grouping response bodies
-EntryPoint: ResponseOverview-1.5.jar
+EntryPoint: ResponseOverview-1.6.jar
 BuildCommand: ./gradlew jar
 SupportedProducts: Pro, Community
