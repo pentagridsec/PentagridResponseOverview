@@ -4,15 +4,21 @@ import burp.IHttpRequestResponse
 import burp.IHttpService
 import burp.IMessageEditorController
 import burp.ITab
+import java.awt.BorderLayout
+import java.awt.Color
 import java.awt.Component
 import java.awt.EventQueue
+import java.awt.FlowLayout
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import javax.swing.*
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
+import javax.swing.border.Border
 import javax.swing.table.AbstractTableModel
 import javax.swing.table.TableRowSorter
+import java.util.regex.Pattern
+import java.util.regex.PatternSyntaxException
 
 
 class OverviewUI: ITab, IMessageEditorController {
@@ -38,6 +44,14 @@ class OverviewUI: ITab, IMessageEditorController {
     private lateinit var debugBox: JCheckBox
     private lateinit var resetButton: JButton
     private lateinit var unhideButton: JButton
+    private lateinit var searchField: JTextField
+    private lateinit var regexBox: JCheckBox
+    private lateinit var caseInsensitiveBox: JCheckBox
+    private lateinit var clearSearchButton: JButton
+    private lateinit var searchTimer: Timer
+    private lateinit var logSorter: TableRowSorter<TableModel>
+    private var lastValidSearchFilter: RowFilter<TableModel, Int>? = null
+    private var searchFieldDefaultBorder: Border? = null
     private val logTable = Table(this)
 
     fun log(): ArrayList<LogEntry> {
@@ -132,13 +146,16 @@ class OverviewUI: ITab, IMessageEditorController {
     private fun createUi(){
         loadSettings()
 
-        logTable.rowSorter = TableRowSorter(logTable.model)
-        (logTable.rowSorter as TableRowSorter<*>).rowFilter = IdRowFilter()
+        logSorter = TableRowSorter(logTable.model as TableModel)
+        // TableRowSorter drives sorting + filtering (hidden rows + search).
+        logTable.rowSorter = logSorter
+        updateRowFilter()
 
         val popupMenu = JPopupMenu()
         val hideItem = JMenuItem("Hide item(s)")
         hideItem.addActionListener {
             for(i in logTable.selectedRows) {
+                // RowSorter active -> convert view row to model row.
                 (logTable.model as TableModel).log[logTable.convertRowIndexToModel(i)].hidden = true
             }
             saveLogEntries()
@@ -175,8 +192,12 @@ class OverviewUI: ITab, IMessageEditorController {
         tabs.addTab("Response", responseViewer.component)
 
         val scrollPane = JScrollPane(logTable)
+        val searchPanel = createSearchPanel()
+        val groupsPanel = JPanel(BorderLayout())
+        groupsPanel.add(searchPanel, BorderLayout.NORTH)
+        groupsPanel.add(scrollPane, BorderLayout.CENTER)
 
-        splitPane.leftComponent = scrollPane
+        splitPane.leftComponent = groupsPanel
         splitPane.rightComponent = tabs
 
         val optionsJPanel = JPanel()
@@ -349,6 +370,8 @@ class OverviewUI: ITab, IMessageEditorController {
         BurpExtender.c.customizeUiComponent(splitPane)
         BurpExtender.c.customizeUiComponent(logTable)
         BurpExtender.c.customizeUiComponent(scrollPane)
+        BurpExtender.c.customizeUiComponent(searchPanel)
+        BurpExtender.c.customizeUiComponent(groupsPanel)
         BurpExtender.c.customizeUiComponent(tabs)
 
         mainJtabedpane.addTab("Groups", null, splitPane, null)
@@ -360,6 +383,129 @@ class OverviewUI: ITab, IMessageEditorController {
         // Important: Do this at the very end (otherwise we could run into troubles locking up entire threads)
         // add the custom tab to Burp's UI
         BurpExtender.c.addSuiteTab(this)
+    }
+
+    private fun createSearchPanel(): JPanel {
+        val panel = JPanel(FlowLayout(FlowLayout.LEFT))
+        val searchLbl = JLabel("Search:")
+        searchField = JTextField(20)
+        regexBox = JCheckBox("Regex")
+        caseInsensitiveBox = JCheckBox("Case-insensitive", true)
+        clearSearchButton = JButton("Clear")
+        searchFieldDefaultBorder = searchField.border
+
+        searchTimer = Timer(200) {
+            applyGroupFilter()
+        }
+        searchTimer.isRepeats = false
+
+        searchField.document.addDocumentListener(
+            DocumentHandler {
+                restartSearchTimer()
+            }
+        )
+        regexBox.addActionListener {
+            restartSearchTimer()
+        }
+        caseInsensitiveBox.addActionListener {
+            restartSearchTimer()
+        }
+        clearSearchButton.addActionListener {
+            searchField.text = ""
+            regexBox.isSelected = false
+            caseInsensitiveBox.isSelected = true
+            restartSearchTimer()
+        }
+
+        panel.add(searchLbl)
+        panel.add(searchField)
+        panel.add(regexBox)
+        panel.add(caseInsensitiveBox)
+        panel.add(clearSearchButton)
+
+        BurpExtender.c.customizeUiComponent(searchLbl)
+        BurpExtender.c.customizeUiComponent(searchField)
+        BurpExtender.c.customizeUiComponent(regexBox)
+        BurpExtender.c.customizeUiComponent(caseInsensitiveBox)
+        BurpExtender.c.customizeUiComponent(clearSearchButton)
+
+        return panel
+    }
+
+    private fun restartSearchTimer() {
+        searchTimer.restart()
+    }
+
+    private fun applyGroupFilter() {
+        val query = searchField.text.trim()
+        if (query.isEmpty()) {
+            lastValidSearchFilter = null
+            setSearchFieldError(false)
+            updateRowFilter()
+            return
+        }
+
+        val isRegex = regexBox.isSelected
+        val isCaseInsensitive = caseInsensitiveBox.isSelected
+        val pattern = try {
+            val flags = if (isCaseInsensitive) Pattern.CASE_INSENSITIVE else 0
+            val expression = if (isRegex) query else Pattern.quote(query)
+            Pattern.compile(expression, flags)
+        } catch (e: PatternSyntaxException) {
+            // Invalid regex: keep the previous filter and mark the field for troubleshooting.
+            setSearchFieldError(true)
+            return
+        }
+
+        setSearchFieldError(false)
+        lastValidSearchFilter = object : RowFilter<TableModel, Int>() {
+            override fun include(entry: Entry<out TableModel, out Int>): Boolean {
+                // Search matches against any column value + full raw request/response (headers + body).
+                for (i in 0 until entry.valueCount) {
+                    val value = entry.getValue(i) ?: continue
+                    if (pattern.matcher(value.toString()).find()) {
+                        return true
+                    }
+                }
+                val logEntry = entry.model.log[entry.identifier]
+                val responseBytes = logEntry.messageInfo.response
+                if (responseBytes != null &&
+                    pattern.matcher(BurpExtender.h.bytesToString(responseBytes)).find()
+                ) {
+                    return true
+                }
+                // Fallback when response bytes are unavailable.
+                if (responseBytes == null &&
+                    pattern.matcher(BurpExtender.h.bytesToString(logEntry.body)).find()
+                ) {
+                    return true
+                }
+                val requestBytes = logEntry.messageInfo.request
+                if (pattern.matcher(BurpExtender.h.bytesToString(requestBytes)).find()) {
+                    return true
+                }
+                return false
+            }
+        }
+        updateRowFilter()
+    }
+
+    private fun setSearchFieldError(isError: Boolean) {
+        if (isError) {
+            searchField.border = BorderFactory.createLineBorder(Color.RED)
+            searchField.toolTipText = "Invalid regex"
+        } else {
+            searchField.border = searchFieldDefaultBorder
+            searchField.toolTipText = null
+        }
+    }
+
+    private fun updateRowFilter() {
+        // Apply hidden-row filter + current search filter to the sorter.
+        val filters = ArrayList<RowFilter<TableModel, Int>>(2)
+        filters.add(IdRowFilter())
+        lastValidSearchFilter?.let { filters.add(it) }
+        logSorter.rowFilter = if (filters.size == 1) filters[0] else RowFilter.andFilter(filters)
     }
 
     fun addNewLogEntry(candidate: LogEntry, persist: Boolean = true) {
@@ -522,6 +668,7 @@ class Table(private val userInterface: OverviewUI): JTable() {
     }
 
     override fun changeSelection(row: Int, col: Int, toggle: Boolean, extend: Boolean){
+        // RowSorter active -> convert view row to model row.
         val logEntry = (model as TableModel).log[convertRowIndexToModel(row)]
         userInterface.requestViewer.setMessage(logEntry.messageInfo.request, true)
         userInterface.responseViewer.setMessage(logEntry.messageInfo.response!!, false)
@@ -533,7 +680,7 @@ class Table(private val userInterface: OverviewUI): JTable() {
 class IdRowFilter: RowFilter<TableModel, Int>(){
 
     override fun include(entry: Entry<out TableModel, out Int>): Boolean {
-        return !entry.model.log[entry.getStringValue(0).toInt()].hidden
+        return !entry.model.log[entry.identifier].hidden
     }
 
 }
